@@ -120,6 +120,9 @@ ACR(Ali Container Registry) 是阿里云提供的容器镜像服务，ACR企业�
     // 源仓库字段中的tag可以同时包含多个（比如"a/b/c:1,2,3"），tag之间通过","隔开，此时目标仓库不能包含tag，并且默认使用原来的tag
     
     // 当目标仓库为空字符串时，会将源镜像同步到默认registry的默认namespace下，并且repo以及tag与源仓库相同，默认registry和默认namespace可以通过命令行参数以及环境变量配置，参考下面的描述
+      
+    // 为了compass迁移到vke，新增基于namespace的同步策略。格式为 源仓库 registry/namespace ，目标仓库为 registry/namespace
+    "test.cargo.io/public": "harbor.boxcube.com/new-public"
 }
 ```
 

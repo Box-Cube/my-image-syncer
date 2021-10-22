@@ -19,18 +19,20 @@ type RepoURL struct {
 // NewRepoURL creates a RepoURL
 func NewRepoURL(url string) (*RepoURL, error) {
 	// split to registry/namespace/repoAndTag
+	// 传入的是 test.cargo.io/public
+	// 分割完成后的为 slice[test.cargo.io,public]
 	slice := strings.SplitN(url, "/", 3)
 
 	var tag, repo string
-	repoAndTag := slice[len(slice)-1]
-	s := strings.Split(repoAndTag, ":")
+	repoAndTag := slice[len(slice)-1] // repo:tag 取最后一位, 此时为 public
+	s := strings.Split(repoAndTag, ":") // 判断 是否存在tag
 	if len(s) > 2 {
 		return nil, fmt.Errorf("invalid repository url: %v", url)
 	} else if len(s) == 2 {
 		repo = s[0]
 		tag = s[1]
 	} else {
-		repo = s[0]
+		repo = s[0] // repo=public
 		tag = ""
 	}
 
@@ -46,11 +48,11 @@ func NewRepoURL(url string) (*RepoURL, error) {
 		// if first string is a domain
 		if strings.Contains(slice[0], ".") {
 			return &RepoURL{
-				url:       url,
-				registry:  slice[0],
-				namespace: "",
-				repo:      repo,
-				tag:       tag,
+				url:       url, //test.cargo.io/public
+				registry:  slice[0], //test.cargo.io
+				namespace: repo, // public，修改namespace为repo，因此此时要同步的是整个project，而前边的判断，已经把ns当成了repo
+				repo:      "", //
+				tag:       tag, // ""
 			}, nil
 		}
 
@@ -110,6 +112,8 @@ func (r *RepoURL) GetTag() string {
 func (r *RepoURL) GetRepoWithNamespace() string {
 	if r.namespace == "" {
 		return r.repo
+	} else if r.repo == "" {
+		return r.namespace
 	}
 	return r.namespace + "/" + r.repo
 }

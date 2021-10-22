@@ -90,6 +90,7 @@ func (c *Client) Run() {
 					if empty {
 						break
 					}
+					// 从这里生产更多的urlPairs，因此修改同步整个project项目的逻辑，就应该修改 GenerateSyncTask
 					moreURLPairs, err := c.GenerateSyncTask(urlPair.source, urlPair.destination)
 					if err != nil {
 						c.logger.Errorf("Generate sync task %s to %s error: %v", urlPair.source, urlPair.destination, err)
@@ -128,6 +129,7 @@ func (c *Client) Run() {
 		wg.Wait()
 	}
 
+	// 将需要同步的image list 传入 urlPairList 中
 	for source, dest := range c.config.GetImageList() {
 		c.urlPairList.PushBack(&URLPair{
 			source:      source,
@@ -175,6 +177,14 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 	}
 
 	sourceURL, err := tools.NewRepoURL(source)
+	// sourceURL 为
+	//RepoURL{
+	//	url:       url, //test.cargo.io/public
+	//	registry:  slice[0], //test.cargo.io
+	//	namespace: "",
+	//	repo:      repo, //public
+	//	tag:       tag, // ""
+	//}
 	if err != nil {
 		return nil, fmt.Errorf("url %s format error: %v", source, err)
 	}
@@ -218,7 +228,8 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 	var imageSource *sync.ImageSource
 	var imageDestination *sync.ImageDestination
 
-	if auth, exist := c.config.GetAuth(sourceURL.GetRegistry(), sourceURL.GetNamespace()); exist {
+	auth, exist := c.config.GetAuth(sourceURL.GetRegistry(), sourceURL.GetNamespace())
+	if exist {
 		c.logger.Infof("Find auth information for %v, username: %v", sourceURL.GetURL(), auth.Username)
 		imageSource, err = sync.NewImageSource(sourceURL.GetRegistry(), sourceURL.GetRepoWithNamespace(), sourceURL.GetTag(),
 			auth.Username, auth.Password, auth.Insecure)
@@ -233,11 +244,46 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 			return nil, fmt.Errorf("generate %s image source error: %v", sourceURL.GetURL(), err)
 		}
 	}
-
+	c.logger.Info("hello world")
 	// if tag is not specific, return tags
 	if sourceURL.GetTag() == "" {
 		if destURL.GetTag() != "" {
 			return nil, fmt.Errorf("tag should be included both side of the config: %s:%s", sourceURL.GetURL(), destURL.GetURL())
+		}
+
+		//count := 0
+		var urlPairs []*URLPair
+		c.logger.Info(sourceURL.GetRepo(), "boxcube")
+		//增加一个判断，当 repo为空的时候，则认为同步的是整个project
+		if sourceURL.GetRepo() == "" {
+
+			oldRegistry := sourceURL.GetRegistry()
+			oldRegistryUser := auth.Username
+			oldRegistryPwd := auth.Password
+			projectID := getProjectIdFromName(oldRegistry, sourceURL.GetNamespace(), oldRegistryUser, oldRegistryPwd)
+			repoInfo := getRepositories(oldRegistry, uint(projectID), oldRegistryUser, oldRegistryPwd)
+		//debug:
+			for _, repo := range repoInfo {
+				oldImageTags := getRepositoryTag(oldRegistry, sourceURL.GetNamespace(),  repo.Name, oldRegistryUser, oldRegistryPwd)
+				fmt.Printf("\n\nrepo name is %v, id is %v, tag is %v\n", repo.Name, repo.ID, oldImageTags)
+				for _, imageTag := range oldImageTags {
+					//debug 测试
+					//count++
+					//if count > 10 {
+					//	return urlPairs, nil
+					//}
+
+					oldImageName := fmt.Sprintf("%s/%s/%s:%s", sourceURL.GetRegistry(), sourceURL.GetNamespace(), repo.Name, imageTag)
+					newImageName := fmt.Sprintf("%s/%s/%s:%s", destURL.GetRegistry(), destURL.GetNamespace(), repo.Name, imageTag)
+					fmt.Printf("oldImage is %s, newImage is %s\n", oldImageName, newImageName)
+					c.logger.Infof("oldImageName is %s, newImageName is %s", oldImageName, newImageName)
+					urlPairs = append(urlPairs, &URLPair{
+						source:      oldImageName,
+						destination: newImageName,
+					})
+				}
+			}
+			return urlPairs, nil
 		}
 
 		// get all tags of this source repo
@@ -248,7 +294,6 @@ func (c *Client) GenerateSyncTask(source string, destination string) ([]*URLPair
 		c.logger.Infof("Get tags of %s successfully: %v", sourceURL.GetURL(), tags)
 
 		// generate url pairs for tags
-		var urlPairs = []*URLPair{}
 		for _, tag := range tags {
 			urlPairs = append(urlPairs, &URLPair{
 				source:      sourceURL.GetURL() + ":" + tag,

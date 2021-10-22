@@ -1,10 +1,11 @@
-quay.io:
-  username: xxx
-  password: xxxxxxxxx
+test.cargo.io:
+  username: admin
+  password: Pwd123456
   insecure: true
-registry.cn-beijing.aliyuncs.com:
-  username: xxx
-  password: xxxxxxxxx
+harbor.boxcube.com:
+  username: admin
+  password: BoxCube@2021.
+  insecure: true
 registry.hub.docker.com:
   username: xxx
   password: xxxxxxxxxx

@@ -62,6 +62,8 @@ func NewSyncConfig(configFile, authFilePath, imageFilePath, defaultDestRegistry,
 		}
 		config.AuthList = expandEnv(config.AuthList)
 
+		// 指定 imageFile 的解码，填充入 imageList 中
+		// 此时imageList 为 map["test.cargo.io/public"]"harbor.boxcube.com/public"
 		if err := openAndDecode(imageFilePath, &config.ImageList); err != nil {
 			return nil, fmt.Errorf("decode image file %v error: %v", imageFilePath, err)
 		}

@@ -52,6 +52,7 @@ func (t *Task) Run() error {
 	}
 	t.Infof("Get manifest from %s/%s:%s", t.source.GetRegistry(), t.source.GetRepository(), t.source.GetTag())
 
+	// 获取 manifest 清单
 	manifestInfoSlice, thisManifestInfo, err := ManifestHandler(manifestBytes, manifestType,
 		t.osFilterList, t.archFilterList, t.source, nil)
 	if err != nil {
@@ -66,6 +67,7 @@ func (t *Task) Run() error {
 		return nil
 	}
 
+	// 从 manifest 清单中获取blob信息
 	blobInfos, err := t.source.GetBlobInfos(manifestInfoSlice)
 	if err != nil {
 		return t.Errorf("Get blob info from %s/%s:%s error: %v",
@@ -73,6 +75,7 @@ func (t *Task) Run() error {
 	}
 
 	// blob transformation
+	// 进行每一层的 blob 传输，blobs文件夹下的子文件夹是以Hash算法的名称来命名的，这些子文件夹下包含了真正的实体文件。
 	for _, b := range blobInfos {
 		blobExist, err := t.destination.CheckBlobExist(b)
 		if err != nil {
@@ -80,6 +83,7 @@ func (t *Task) Run() error {
 				b.Digest, b.Size, t.destination.GetRegistry(), t.destination.GetRepository(), t.destination.GetTag(), err)
 		}
 
+		// 如果目标registry 不存在对应的 blob，则从 源registry拉取blob，并push到目标registry
 		if !blobExist {
 			// pull a blob from source
 			blob, size, err := t.source.GetABlob(b)
